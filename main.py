@@ -5,8 +5,22 @@
 import json
 import sys
 import cx_Oracle
+import pymysql
 
-
+def GetMysqlColumn(SourceJdbc,TableName,SourceUser,SourcePassword):
+    JdbcSplit=SourceJdbc.split(':')
+    Ip=JdbcSplit[2].replace('//','')
+    PortDb=JdbcSplit[3].split('/')
+    Column=[]
+    conn=pymysql.connect(host=Ip,user=SourceUser,password=SourcePassword,database=PortDb[1],charset='utf8',port=int(PortDb[0]))
+    cursor=conn.cursor()
+    sql="desc " + TableName
+    cursor.execute(sql)
+    result=cursor.fetchall()
+    for row in result:
+        Column.append(row[0])
+    print(Column)
+    return Column
 
 def GetOracleColumn(SourceJdbc, TableName, SourceUser, SourcePassword):
     TableName = TableName.split('.')
@@ -34,7 +48,7 @@ def GetOracleColumn(SourceJdbc, TableName, SourceUser, SourcePassword):
     return Column,PkColumn
 
 def MakeJson(SourceUser, SourcePassword, SourceName, DestinationUser, DestinationPassword, DestinationName,
-             ErrorRecode, SourceTableName, splitPk, SourceJdbc, DestinationJDBC,Column,DestinationTableName,PkColumn,WriteMode):
+             ErrorRecode, SourceTableName,  SourceJdbc, DestinationJDBC,Column,DestinationTableName,PkColumn,WriteMode):
     dict = {
 "core":
   {"transport":
@@ -96,21 +110,19 @@ def MakeJson(SourceUser, SourcePassword, SourceName, DestinationUser, Destinatio
 }
     jsonstr = json.dumps(dict, indent=4)
     return (jsonstr)
-
-
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
-    SourceUser = "haojiubujian"
-    SourcePassword = "csy990309"
-    SourceName = "oraclereader"
+    SourceUser = "root"
+    SourcePassword = "Csy990309@"
+    SourceName = "mysqlreader"
     DestinationUser = "root"
     DestinationPassword = "Csy990309@"
     DestinationName = "mysqlwriter"
-    Channel = "10"
     ErrorRecode = 0.01
-    SourceTableName = "HAOJIUBUJIAN.T_STU"
+    SourceTableName = "T_STU"
     splitPk = ""
-    SourceJdbc="jdbc:oracle:thin:@101.34.179.142:7010:orcl"
+    #SourceJdbc="jdbc:oracle:thin:@101.34.179.142:7010:orcl"
+    SourceJdbc = "jdbc:mysql://101.34.179.142:3306/dataxweb"
     DestinationJDBC="jdbc:mysql://101.34.179.142:3306/dataxweb"
     Column=[]
     PkColumn=""
@@ -118,12 +130,14 @@ if __name__ == '__main__':
     WriteMode="replace"
     if SourceName == 'oraclereader':
         Column,PkColumn=GetOracleColumn(SourceJdbc, SourceTableName, SourceUser, SourcePassword)
-    if DestinationName=='mysqlwriter':
+    elif SourceName == 'mysqlreader':
+        Column=GetMysqlColumn(SourceJdbc, SourceTableName, SourceUser, SourcePassword)
+    if DestinationName=='mysqlwriter' and SourceName=='oraclereader':
         DestinationTableName=(SourceTableName.split('.'))[1]
     else:
         DestinationTableName=SourceTableName
     JsonResult = MakeJson(SourceUser, SourcePassword, SourceName, DestinationUser, DestinationPassword, DestinationName,
-                      ErrorRecode, SourceTableName, splitPk, SourceJdbc, DestinationJDBC,Column,DestinationTableName,PkColumn,WriteMode)
+                      ErrorRecode, SourceTableName,  SourceJdbc, DestinationJDBC,Column,DestinationTableName,PkColumn,WriteMode)
     print(JsonResult)
 
 # See PyCharm help at https://www.jetbrains.com/help/pycharm/
